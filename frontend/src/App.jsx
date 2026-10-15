@@ -972,7 +972,14 @@ export default function App() {
     const search = window.location.search || '';
     const path = window.location.pathname || '';
     const hash = window.location.hash || '';
-    return search.includes('view=map') || path === '/map' || hash === '#map';
+    // If user explicitly requested desktop view
+    if (search.includes('view=desktop') || hash === '#desktop') return false;
+    // If user explicitly requested map view
+    if (search.includes('view=map') || path === '/map' || hash === '#map') return true;
+    // Auto-detect mobile devices (iPhone, iPad, Android phone) or mobile screen width
+    const isMobileUA = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
+    const isMobileWidth = window.innerWidth <= 768;
+    return isMobileUA || isMobileWidth;
   });
 
   useEffect(() => {
@@ -980,7 +987,15 @@ export default function App() {
       const search = window.location.search || '';
       const path = window.location.pathname || '';
       const hash = window.location.hash || '';
-      setIsMapOnlyMode(search.includes('view=map') || path === '/map' || hash === '#map');
+      if (search.includes('view=desktop') || hash === '#desktop') {
+        setIsMapOnlyMode(false);
+      } else if (search.includes('view=map') || path === '/map' || hash === '#map') {
+        setIsMapOnlyMode(true);
+      } else {
+        const isMobileUA = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
+        const isMobileWidth = window.innerWidth <= 768;
+        setIsMapOnlyMode(isMobileUA || isMobileWidth);
+      }
       if (search.includes('view=quiz') || path === '/quiz' || hash === '#quiz') {
         setShowQuizModal(true);
       }
@@ -3408,17 +3423,46 @@ export default function App() {
     return (
       <div className="standalone-floor-map-container" style={{ padding: '0.75rem', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         {/* Sleek Top Floor Map Navigation Bar */}
-        <header className="standalone-map-header" style={{ width: '100%', maxWidth: '840px', borderRadius: '10px', marginBottom: '0.75rem' }}>
-          <div className="standalone-map-brand">
-            <div className="brand-icon-box">
-              <Compass size={20} color="#38bdf8" />
-            </div>
-            <div>
-              <h1 className="brand-title">AEGIS · Building Floor Map</h1>
-              <div className="brand-subtitle">
-                <span className="live-status-dot"></span>
-                <span>LIVE EVACUATION SIMULATOR</span>
+        <header className="standalone-map-header" style={{ width: '100%', maxWidth: '840px', borderRadius: '12px', marginBottom: '0.75rem' }}>
+          <div className="standalone-map-header-top-row">
+            <div className="standalone-map-brand">
+              <div className="brand-icon-box">
+                <Compass size={20} color="#38bdf8" />
               </div>
+              <div>
+                <h1 className="brand-title">AEGIS · Building Floor Map</h1>
+                <div className="brand-subtitle">
+                  <span className="live-status-dot"></span>
+                  <span>LIVE EVACUATION SIMULATOR</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action buttons: Quiz & Certificate and Return */}
+            <div className="standalone-header-actions">
+              <button
+                className="btn-quiz-cta"
+                onClick={() => setShowQuizModal(true)}
+                title="Take Fire Safety & Exit Quiz to earn Official Safety Certificate"
+              >
+                <Award size={15} color="#fbbf24" />
+                <span>Safety Quiz 🎓</span>
+              </button>
+              <button
+                className="btn-back-cmd"
+                onClick={() => {
+                  setIsMapOnlyMode(false);
+                  if (window.history.pushState) {
+                    window.history.pushState({}, '', '/?view=desktop');
+                  } else {
+                    window.location.search = '?view=desktop';
+                  }
+                }}
+                title="Switch to Full Multi-Deck Command Center"
+              >
+                <ArrowLeft size={15} />
+                <span>Command Center</span>
+              </button>
             </div>
           </div>
 
@@ -3436,35 +3480,6 @@ export default function App() {
               </button>
             ))}
           </div>
-
-          {/* Action buttons: Quiz & Certificate and Return */}
-          <div className="standalone-header-actions">
-            <button
-              className="btn-quiz-cta"
-              onClick={() => setShowQuizModal(true)}
-              title="Take Fire Safety & Exit Quiz to earn Official Safety Certificate"
-            >
-              <Award size={15} color="#fbbf24" />
-              <span>Safety Quiz 🎓</span>
-            </button>
-            <button
-              className="btn-back-cmd"
-              onClick={() => {
-                setIsMapOnlyMode(false);
-                if (window.history.pushState) {
-                  window.history.pushState({}, '', '/');
-                } else {
-                  window.location.search = '';
-                  window.location.hash = '';
-                  window.location.pathname = '/';
-                }
-              }}
-              title="Return to Full Simulator"
-            >
-              <ArrowLeft size={15} />
-              <span>Command Center</span>
-            </button>
-          </div>
         </header>
 
         {/* Emergency Alert Banner (Displays only if active incident) */}
@@ -3480,7 +3495,7 @@ export default function App() {
         {/* The Exact Canvas Viewport Card from the First Image */}
         <div className="canvas-viewport-card" style={{ width: '100%', maxWidth: '840px', margin: '0 auto', boxShadow: '0 12px 40px rgba(0,0,0,0.7)' }}>
           <div className="canvas-top-overlay">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <div className="viewport-badge">
                 <Compass size={13} />
                 <span>{activeFloor < 0 ? 'PERSPECTIVE: 3D CONNECTED MULTI-FLOOR' : `LEVEL: ${FN[activeFloor].toUpperCase()}`}</span>
@@ -3496,7 +3511,7 @@ export default function App() {
               </button>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <span className="viewport-badge">SCALE: 1:50 · 40x25 CELLS</span>
+              <span className="viewport-badge hide-mobile">SCALE: 1:50 · 40x25 CELLS</span>
               <span className="viewport-badge" style={{ color: '#34d399' }}>● 60 FPS</span>
             </div>
           </div>
@@ -3506,7 +3521,7 @@ export default function App() {
             id="map"
             width={800}
             height={500}
-            style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '8px' }}
+            style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '8px', touchAction: 'manipulation' }}
             onPointerDown={handlePointerDown}
           />
         </div>
@@ -3570,6 +3585,20 @@ export default function App() {
           >
             <Compass size={14} />
             <span>🗺️ Evacuation Route Map</span>
+          </button>
+          <button
+            id="nav-pill-phonemap"
+            className="page-nav-pill"
+            onClick={() => {
+              setIsMapOnlyMode(true);
+              if (window.history.pushState) {
+                window.history.pushState({}, '', '/?view=map');
+              }
+            }}
+            title="Switch to iPhone & Android Mobile Floor Map View"
+          >
+            <Smartphone size={14} />
+            <span>📱 Phone View</span>
           </button>
         </div>
 
